@@ -4,7 +4,7 @@ import glob
 from conan import ConanFile
 from conan.tools.layout import basic_layout
 from conan.tools.gnu import AutotoolsToolchain, PkgConfigDeps, Autotools, AutotoolsDeps, PkgConfig
-from conan.tools.files import get
+from conan.tools.files import get, copy, collect_libs, rm, rmdir
 import shutil
 
 
@@ -45,14 +45,12 @@ class LibXpmConan(ConanFile):
         "shared": False,
         "fPIC": True,
     }
-#    generators = "CMakeToolchain"
     exports_sources = "CMakeLists.txt", "windows/*"
     no_copy_source = True
     generators = "VirtualBuildEnv", "PkgConfigDeps", "AutotoolsDeps"
 
     def layout(self):
         basic_layout(self, src_folder="src")
-#        cmake_layout(self, src_folder="src")
     
     def validate(self):
         if self.settings.os not in ("Windows", "Linux", "FreeBSD"):
@@ -74,16 +72,13 @@ class LibXpmConan(ConanFile):
         del self.settings.compiler.cppstd
 
     def build_requirements(self):
-        #NOTE: these seem pretty uncontroversial...
         self.tool_requires("autoconf/2.71")
         self.tool_requires("m4/1.4.19")
         self.tool_requires("make/4.3")
-
-        #NOTE: BUT - the two below break the build on e.g. openSUSE Leap,
-        # because conan shipped automake cannot get hold of 
         self.tool_requires("pkgconf/1.9.5")
         self.tool_requires("libtool/2.4.7")
         self.tool_requires("automake/1.16.5")
+        self.tool_requires("gettext/0.21")
         
         
     def requirements(self):
@@ -112,7 +107,8 @@ class LibXpmConan(ConanFile):
 
             
             tc.autoreconf_args.append(f"-I{extra_m4_path}")
-            self.run(f"autoupdate {extra_m4_path} -I${{AC_MACRODIR}}")
+#            self.run(f"autoupdate {extra_m4_path} -I$AC_MACRODIR")
+            self.run(f"autoupdate {extra_m4_path}")
 
             #we're not even done yet. The build system here will ask for the "xproto" pkg_config
             #package on _some_ linux systems. That's not included in the xorg/system package, presumably
@@ -147,11 +143,19 @@ class LibXpmConan(ConanFile):
         autotools.make()
 
     def package(self):
-        self.copy("COPYING", "licenses")
-        self.copy("COPYRIGHT", "licenses")
-        self._configure_cmake().install()
+        autotools = Autotools(self)
+        autotools.install()
+
+        licfolder = os.path.join(self.package_folder, "licenses")
+        copy(self, "COPYING", self.source_folder, licfolder)
+        copy(self, "COPYRIGHT", self.source_folder, licfolder)
+
+        rmdir(self, os.path.join(self.package_folder, "share"))
+        rmdir(self, os.path.join(self.package_folder, "lib", "pkgconfig"))
+        rm(self, "*.la", self.package_folder, recursive=True)
 
     def package_info(self):
         self.cpp_info.libs = ["Xpm"]
         if self.settings.os == "Windows":
             self.cpp_info.defines = ["FOR_MSW"]
+        self.cpp_info.set_property("pkg_config_name", "xpm")
