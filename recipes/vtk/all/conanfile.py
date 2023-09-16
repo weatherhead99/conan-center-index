@@ -10,6 +10,10 @@ class VTKConan(ConanFile):
     settings = "os", "arch", "compiler", "build_type"
 
     requires = ("opengl/system")
+    options = { "shared" : [True, False],
+                "smp_type" : ["Sequential", "STDThread", "OpenMP", "TBB"]}
+    default_options = {"shared" : False,
+                       "smp_type" : "STDThread"}
 
     def export_sources(self):
         export_conandata_patches(self)
@@ -45,6 +49,11 @@ class VTKConan(ConanFile):
         self.requires("icu/73.2")
         self.requires("cgns/4.3.0")
         self.requires("libharu/2.4.3")
+        self.requires("fmt/[~9]")
+
+        #conditional requires
+        if self.options.smp_type == "TBB":
+            self.requires("onetbb/2021.10.0")
 
         #NOTE: the current proj and netCDF recipes conflict with each other.
         #it appears to be cheaper to rebuild netCDF than proj, so we choose the
@@ -64,7 +73,7 @@ class VTKConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.cache_variables["VTK_USE_EXTERNAL"] = True
         tc.cache_variables["VTK_LEGACY_REMOVE"] = True
-
+        tc.cache_variables["VTK_SMP_IMPLEMENTATION_TYPE"] = self.options.smp_type
 
         #deps that aren't found and appear to have no conan packages at the moment
         internal_mods = ["verdict", "pegtl", "ioss", "gl2ps"]
