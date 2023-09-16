@@ -1,5 +1,5 @@
 from conan import ConanFile
-from conan.tools.files import get
+from conan.tools.files import get, copy
 from conan.tools.cmake import cmake_layout, CMake, CMakeToolchain, CMakeDeps
 
 class VTKConan(ConanFile):
@@ -72,9 +72,24 @@ class VTKConan(ConanFile):
         deps.set_property("expat", "cmake_file_name", "EXPAT")
         deps.set_property("expat", "cmake_target_name", "EXPAT::EXPAT")
 
+        deps.set_property("eigen", "cmake_target_name", "Eigen3::Eigen3")
+        deps.set_property("lz4", "cmake_target_name", "LZ4::LZ4")
+
+        deps.set_property("theora::theora", "cmake_target_name", "THEORA::THEORA")
+        if self.settings.os != "Windows" or self.settings.os.subsystem in ["msys", "msys2"]:
+            deps.set_property("theora::theoradec", "cmake_target_name", "THEORA::DEC")
+            deps.set_property("theora::theoraenc", "cmake_target_name", "THEORA::ENC")
+
         deps.generate()
 
     def build(self):
         cm = CMake(self)
         cm.configure()
+
+        #when using external fast_float library, VTK still generates its own internal header
+        #but somehow doesn't include that directory within its vast, byzantine CMake machinery.
+        #So we copy that particular header to top level build directory such that it can be
+        #found
+        
+        
         cm.build()
