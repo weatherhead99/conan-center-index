@@ -1,0 +1,5 @@
+sources:
+  "9.3.0.rc1":
+    url: "https://www.vtk.org/files/release/9.3/VTK-9.3.0.rc1.tar.gz"
+    sha256: "6581cec8e1c7a0290d1be0177eb84e2e7c3cb84d1ed154c7f1b57d227b7a7616"
+
