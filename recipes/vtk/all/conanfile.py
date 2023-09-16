@@ -1,5 +1,5 @@
 from conan import ConanFile
-from conan.tools.files import get, copy
+from conan.tools.files import get, copy, apply_conandata_patches, export_conandata_patches
 from conan.tools.cmake import cmake_layout, CMake, CMakeToolchain, CMakeDeps
 
 class VTKConan(ConanFile):
@@ -10,9 +10,13 @@ class VTKConan(ConanFile):
 
     requires = ("opengl/system")
 
+    def export_sources(self):
+        export_conandata_patches(self)
+
     def source(self):
         get(self, **self.conan_data["sources"][self.version],
             strip_root=True)
+        apply_conandata_patches(self)
 
     def layout(self):
         cmake_layout(self, src_folder="src")
@@ -22,7 +26,7 @@ class VTKConan(ConanFile):
 
         #in conan center
         self.requires("utf8.h/cci.20210310")
-        self.requires("fast_float/[>=3.9.0 <4]")
+        self.requires("fast_float/3.11.0")
         self.requires("exprtk/0.0.2")
         self.requires("pugixml/1.13")
         self.requires("libpng/1.6.40")
@@ -55,10 +59,11 @@ class VTKConan(ConanFile):
         #NOT in conan center
         # Verdict
 
-        
     def generate(self):
         tc = CMakeToolchain(self)
         tc.cache_variables["VTK_USE_EXTERNAL"] = True
+        tc.cache_variables["VTK_LEGACY_REMOVE"] = True
+
 
         #externals that aren't found and appear to have no conan packages at the moment
         internal_mods = ["verdict", "pegtl", "ioss", "gl2ps"]
@@ -85,11 +90,4 @@ class VTKConan(ConanFile):
     def build(self):
         cm = CMake(self)
         cm.configure()
-
-        #when using external fast_float library, VTK still generates its own internal header
-        #but somehow doesn't include that directory within its vast, byzantine CMake machinery.
-        #So we copy that particular header to top level build directory such that it can be
-        #found
-        
-        
         cm.build()
