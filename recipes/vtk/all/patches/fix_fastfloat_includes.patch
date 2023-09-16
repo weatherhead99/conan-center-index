@@ -1,7 +1,7 @@
-Index: all/src/ThirdParty/fast_float/CMakeLists.txt
+Index: ThirdParty/fast_float/CMakeLists.txt
 ===================================================================
---- all.orig/src/ThirdParty/fast_float/CMakeLists.txt
-+++ all/src/ThirdParty/fast_float/CMakeLists.txt
+--- ThirdParty/fast_float/CMakeLists.txt
++++ ThirdParty/fast_float/CMakeLists.txt
 @@ -16,6 +16,7 @@ vtk_module_third_party(
      VERSION "3.9.0"
      PACKAGE FastFloat
