@@ -1,6 +1,12 @@
-from conans import ConanFile, tools, AutoToolsBuildEnvironment
-from conans.errors import ConanInvalidConfiguration
+from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
+from conan.tools.files import get, copy, mkdir, rmdir
+from conan.tools.layout import basic_layout
+from conan.tools.gnu import Autotools, AutotoolsDeps, AutotoolsToolchain
+#from conans import ConanFile, tools, AutoToolsBuildEnvironment
+#from conans.errors import ConanInvalidConfiguration
 import os
+from pathlib import Path
 
 required_conan_version = ">=1.29.1"
 
@@ -30,6 +36,9 @@ class OpenMPIConan(ConanFile):
     def _source_subfolder(self):
         return "source_subfolder"
 
+    def layout(self):
+        basic_layout(self, src_folder="src")
+
     def configure(self):
         if self.options.shared:
             del self.options.fPIC
@@ -40,12 +49,21 @@ class OpenMPIConan(ConanFile):
 
     def requirements(self):
         # FIXME : self.requires("libevent/2.1.12") - try to use libevent from conan
-        self.requires("zlib/1.2.11")
+        self.requires("zlib/1.3")
+
+    def build_requirements(self):
+        self.tool_requires("autoconf/2.71")
+        self.tool_requires("automake/1.16.5")
 
     def source(self):
-        tools.get(**self.conan_data["sources"][self.version])
-        extracted_dir = self.name + "-" + self.version
-        os.rename(extracted_dir, self._source_subfolder)
+        get(self, **self.conan_data["sources"][self.version], strip_root=True)
+
+    def generate(self):
+        deps = AutotoolsDeps(self)
+        deps.generate()
+
+        tc = AutotoolsToolchain(self)
+        tc.generate()
 
     def _configure_autotools(self):
         if self._autotools:
@@ -54,32 +72,39 @@ class OpenMPIConan(ConanFile):
         args = ["--disable-wrapper-rpath", "--disable-wrapper-runpath"]
         if self.settings.build_type == "Debug":
             args.append("--enable-debug")
-        if self.options.shared:
-            args.extend(["--enable-shared", "--disable-static"])
-        else:
-            args.extend(["--enable-static", "--disable-shared"])
+
+        #NOTE: handled by conan2
+        # if self.options.shared:
+        #     args.extend(["--enable-shared", "--disable-static"])
+        # else:
+        #     args.extend(["--enable-static", "--disable-shared"])
         args.append("--with-pic" if self.options.get_safe("fPIC", True) else "--without-pic")
         args.append("--enable-mpi-fortran={}".format(str(self.options.fortran)))
         args.append("--with-zlib={}".format(self.deps_cpp_info["zlib"].rootpath))
         args.append("--with-zlib-libdir={}".format(self.deps_cpp_info["zlib"].lib_paths[0]))
-        args.append("--datarootdir=${prefix}/res")
+
+        #args.append("--datarootdir=${prefix}/res") handled auto by conan2
         self._autotools.configure(args=args)
         return self._autotools
 
     def build(self):
-        with tools.chdir(self._source_subfolder):
-            autotools = self._configure_autotools()
-            autotools.make()
+        at = Autotools(self)
+#        at.autoreconf()
+        at.configure()
+        at.make()
+
 
     def package(self):
-        self.copy(pattern="LICENSE", src=self._source_subfolder, dst="licenses")
-        with tools.chdir(self._source_subfolder):
-            autotools = self._configure_autotools()
-            autotools.install()
-        tools.rmdir(os.path.join(self.package_folder, "lib", "pkgconfig"))
-        tools.rmdir(os.path.join(self.package_folder, "share"))
-        tools.rmdir(os.path.join(self.package_folder, "etc"))
-        tools.remove_files_by_mask(os.path.join(self.package_folder, "lib"), "*.la")
+        at = Autotools(self)
+        at.install()
+        copy(self, pattern="LICENSE", src=self._source_subfolder, dst="licenses")
+        pf = Path(self.package_folder)
+        rmdir(pf / "lib" / "pkgconfig")
+        rmdir(pf / "share")
+        rmdir(pf / "etc")
+
+        #TODO: WTF?
+#        remove_files_by_mask(os.path.join(self.package_folder, "lib"), "*.la")
 
     def package_info(self):
         self.cpp_info.libs = ['mpi', 'open-rte', 'open-pal']
