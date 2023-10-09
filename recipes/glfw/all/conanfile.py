@@ -23,11 +23,13 @@ class GlfwConan(ConanFile):
         "shared": [True, False],
         "fPIC": [True, False],
         "vulkan_static": [True, False],
+        "display_manager": ["X11", "Wayland"]
     }
     default_options = {
         "shared": False,
         "fPIC": True,
         "vulkan_static": False,
+        "display_manager": "X11"
     }
 
     def export_sources(self):
@@ -36,6 +38,9 @@ class GlfwConan(ConanFile):
     def config_options(self):
         if self.settings.os == "Windows":
             del self.options.fPIC
+
+        if self.settings.os not in ["Linux", "FreeBSD"]:
+            del self.options.display_manager
 
     def configure(self):
         if self.options.shared:
@@ -51,7 +56,12 @@ class GlfwConan(ConanFile):
         if self.options.vulkan_static:
             self.requires("vulkan-loader/1.3.239.0")
         if self.settings.os in ["Linux", "FreeBSD"]:
-            self.requires("xorg/system")
+            if self.options.display_manager == "X11":
+                self.requires("xorg/system")
+            else:
+                self.requires("wayland/1.21.0")
+                self.requires("xkbcommon/1.5.0")
+                self.requires("extra-cmake-modules/5.108.0")
 
     def source(self):
         get(self, **self.conan_data["sources"][self.version], strip_root=True)
@@ -65,6 +75,9 @@ class GlfwConan(ConanFile):
         tc.variables["GLFW_VULKAN_STATIC"] = self.options.vulkan_static
         if is_msvc(self):
             tc.variables["USE_MSVC_RUNTIME_LIBRARY_DLL"] = not is_msvc_static_runtime(self)
+
+        if self.options.get_safe("display_manager") == "Wayland":
+            tc.variables["GLFW_USE_WAYLAND"] = True
         tc.generate()
 
     def _patch_sources(self):
