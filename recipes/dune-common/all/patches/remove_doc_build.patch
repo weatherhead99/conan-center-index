@@ -2,7 +2,7 @@ Index: src/CMakeLists.txt
 ===================================================================
 --- src.orig/CMakeLists.txt
 +++ src/CMakeLists.txt
-@@ -23,7 +23,7 @@ add_dune_tbb_flags(dunecommon)
+@@ -23,10 +23,10 @@ add_dune_tbb_flags(dunecommon)
  # add subdirectories to execute CMakeLists.txt there
  add_subdirectory(bin)
  add_subdirectory(cmake)
@@ -10,4 +10,8 @@ Index: src/CMakeLists.txt
 +#add_subdirectory(doc)
  add_subdirectory(dune)
  add_subdirectory(lib)
- add_subdirectory(share)
+-add_subdirectory(share)
++#add_subdirectory(share)
+ 
+ # if Python bindings are enabled, include necessary sub directories.
+ if(DUNE_ENABLE_PYTHONBINDINGS)
