@@ -1,6 +1,6 @@
 from conan import ConanFile
 from conan.tools.cmake import CMakeToolchain, CMake, cmake_layout, CMakeDeps
-from conan.tools.files import get
+from conan.tools.files import get, collect_libs
 
 class dune_commonRecipe(ConanFile):
     name = "dune-common"
@@ -21,6 +21,15 @@ class dune_commonRecipe(ConanFile):
     # Sources are located in the same place as this recipe, copy them to the recipe
     exports_sources = "CMakeLists.txt", "src/*", "include/*"
 
+    def build_requirements(self):
+        self.requires("vc/1.4.2")
+        self.requires("openblas/0.3.20")
+        self.requires("onetbb/2021.10.0")
+        self.requires("metis/5.2.1")
+
+        self.requires("gmp/6.3.0")
+        
+
     def config_options(self):
         if self.settings.os == "Windows":
             self.options.rm_safe("fPIC")
@@ -35,11 +44,20 @@ class dune_commonRecipe(ConanFile):
     def source(self):
         get(self, **self.conan_data["sources"][self.version],
             strip_root=True)
-        
+
     def generate(self):
         deps = CMakeDeps(self)
+        deps.set_property("metis", "cmake_find_mode", "module")
+        deps.set_property("metis", "cmake_file_name", "METIS")
+        deps.set_property("metis", "cmake_target_name", "METIS::METIS")
+        deps.set_property("gmp", "cmake_find_mode", "module")
+        deps.set_property("gmp", "cmake_file_name", "GMP")
+        deps.set_property("gmp", "cmake_target_name", "GMP::gmpxx")
         deps.generate()
+
         tc = CMakeToolchain(self)
+        tc.variables["DUNE_ENABLE_PYTHONBINDINGS"] = False
+        tc.variables["BUILD_TESTING"] = False
         tc.generate()
 
     def build(self):
@@ -52,9 +70,5 @@ class dune_commonRecipe(ConanFile):
         cmake.install()
 
     def package_info(self):
-        self.cpp_info.libs = ["dune-common"]
-
-    
-
-    
+        self.cpp_info.libs = collect_libs(self)
 
