@@ -1,0 +1,4 @@
+sources:
+  "2.9.0":
+    url: "https://www.dune-project.org/download/2.9.0/dune-common-2.9.0.tar.gz"
+    sha256: "2dc32042c999bbbfa8304dcdc3eb307a0f3f206c96d35e3e8a6cc505309aff12"
