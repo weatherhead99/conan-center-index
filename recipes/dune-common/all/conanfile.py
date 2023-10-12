@@ -71,5 +71,7 @@ class dune_commonRecipe(ConanFile):
 
     def package_info(self):
         self.cpp_info.libs = collect_libs(self)
+        self.cpp_info.defines = ["ENABLE_TBB=1"]
         #Note No namespace
         self.cpp_info.set_property("cmake_target_name", "dune-common")
+        
