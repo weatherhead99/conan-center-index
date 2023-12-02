@@ -1,0 +1,4 @@
+sources:
+  "1.0.3":
+    url: "https://github.com/zeromq/azmq/archive/refs/tags/v1.0.3.tar.gz"
+    sha256: "80cfb951c5614b8c2e55a59ea2e5723a18ebed08da80e5420e525d6bf273771a"
