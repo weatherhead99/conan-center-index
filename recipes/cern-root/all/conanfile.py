@@ -1,5 +1,11 @@
-from conans import CMake, ConanFile, tools
-from conans.errors import ConanInvalidConfiguration
+#from conans import CMake, ConanFile, tools
+from conan import ConanFile
+from conan.errors import ConanInvalidConfiguration
+from conan.tools.cmake import CMakeToolchain, CMakeDeps, CMake, cmake_layout
+from conan.tools.files import get, apply_conandata_patches
+from conan.tools.build import check_min_cppstd
+from conan.tools.scm import Version
+#from conans.errors import ConanInvalidConfiguration
 import glob
 import os
 import shutil
@@ -15,8 +21,6 @@ class PythonOption:
     # FIXME: add option to use CCI Python package when it is available
     ALL = [OFF, SYSTEM]
 
-
-required_conan_version = ">=1.33.0"
 
 
 class CernRootConan(ConanFile):
@@ -47,17 +51,10 @@ class CernRootConan(ConanFile):
     }
 
     exports_sources = "patches/*"
-    generators = "cmake", "cmake_find_package"
 
-    _cmake = None
 
-    @property
-    def _source_subfolder(self):
-        return "source_subfolder"
-
-    @property
-    def _build_subfolder(self):
-        return "build_subfolder"
+    def layout(self):
+        cmake_layout(self, src_folder="src")
 
     @property
     def _minimum_cpp_standard(self):
@@ -81,21 +78,23 @@ class CernRootConan(ConanFile):
         self.requires("fftw/3.3.9")
         self.requires("giflib/5.2.1")
         self.requires("glew/2.2.0")
-        self.requires("glu/system")
         self.requires("libcurl/7.78.0")
         self.requires("libjpeg/9d")
         self.requires("libpng/1.6.37")
         self.requires("libxml2/2.9.12")
         self.requires("lz4/1.9.3")
-        self.requires("opengl/system")
-        self.requires("openssl/1.1.1l")
-        self.requires("pcre/8.44")
+        self.requires("openssl/1.1.1w")
+        self.requires("pcre/8.45")
         self.requires("sqlite3/3.36.0")
-        self.requires("tbb/2020.3")
-        self.requires("xorg/system")
+        self.requires("onetbb/2021.10.0")
+
+        #disable for now, fix for GUI backend later
+        #self.requires("xorg/system")
+        
         self.requires("xxhash/0.8.0")
         self.requires("xz_utils/5.2.5")
         self.requires("zstd/1.5.0")
+        self.requires("gsl/2.7.1")
 
     def validate(self):
         self._enforce_minimum_compiler_version()
@@ -103,7 +102,7 @@ class CernRootConan(ConanFile):
 
     def _enforce_minimum_compiler_version(self):
         if self.settings.compiler.get_safe("cppstd"):
-            tools.check_min_cppstd(self, self._minimum_cpp_standard)
+            check_min_cppstd(self, self._minimum_cpp_standard)
         min_version = self._minimum_compilers_version.get(str(self.settings.compiler))
         if not min_version:
             self.output.warn(
@@ -112,7 +111,7 @@ class CernRootConan(ConanFile):
                 )
             )
         else:
-            if tools.Version(self.settings.compiler.version) < min_version:
+            if Version(self.settings.compiler.version) < min_version:
                 raise ConanInvalidConfiguration(
                     "{} requires C++{} support. The current compiler {} {} does not support it.".format(
                         self.name,
@@ -133,8 +132,8 @@ class CernRootConan(ConanFile):
             )
 
     def source(self):
-        tools.get(**self.conan_data["sources"][self.version],
-                  destination=self._source_subfolder, strip_root=True)
+        get(self, **self.conan_data["sources"][self.version],
+            destination=self.source_folder, strip_root=True)
 
     def _patch_source_cmake(self):
         try:
@@ -193,6 +192,43 @@ class CernRootConan(ConanFile):
     def _make_file_executable(filename):
         st = os.stat(filename)
         os.chmod(filename, st.st_mode | stat.S_IEXEC)
+
+
+    def generate(self):
+        tc = CMakeToolchain(self)
+        builtin_disable = ["cfitsio", "davix", "fftw3", "freetype", "glew", "lz4", "lzma",
+                           "openssl", "pcre", "tbb", "xxhash", "zlib", "zstd", "gsl"]
+
+        for dep in builtin_disable:
+            tc.cache_variables[f"builtin_{dep}"] = False
+
+        builtin_enable = ["vdt"]
+
+        for dep in builtin_enable:
+            tc.cache_variables[f"builtin_{dep}"] = True
+            
+        tc.cache_variables["fail-on-missing"] = True
+        tc.cache_variables["gnuinstall"] = True
+        tc.cache_variables["soversion"] = True
+
+
+        #NOTE: for GUI stuff
+        tc.cache_variables["x11"] = False
+
+        disable_feats = ["davix", "pythia6", "pythia8", "mysql", "oracle", "pgsql",
+                         "gfal", "tvma-pymva", "xrootd", "pyroot"]
+
+        for feat in disable_feats:
+            tc.cache_variables[feat] = False
+
+        tc.generate()
+
+        deps = CMakeDeps(self)
+        deps.set_property("pcre", "cmake_target_name", "PCRE::PCRE")
+        deps.set_property("xxhash", "cmake_target_name", "xxHash::xxHash")
+        deps.set_property("lz4", "cmake_target_name", "LZ4::LZ4")
+        
+        deps.generate()
 
     def _configure_cmake(self):
         if self._cmake:
@@ -281,8 +317,11 @@ class CernRootConan(ConanFile):
             return True
 
     def build(self):
-        self._patch_sources()
-        cmake = self._configure_cmake()
+#        self._patch_sources()
+#        cmake = self._configure_cmake()AArithmeticError
+        apply_conandata_patches(self)
+        cmake = CMake(self)
+        cmake.configure()
         cmake.build()
 
     def package(self):
