@@ -12,6 +12,7 @@ class RaftlibConan(ConanFile):
     homepage = "https://github.com/RaftLib/RaftLib"
     package_type = "library"
     settings = "os", "arch", "compiler", "build_type"
+    exports = "patches/*.patch"
     options = {"shared" : [True, False]}
     default_options = {"shared" : False}
 
@@ -49,3 +50,7 @@ class RaftlibConan(ConanFile):
         cm = CMake(self)
         cm.configure()
         cm.build()
+
+    def package(self):
+        cm = CMake(self)
+        cm.install()
