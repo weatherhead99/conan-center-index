@@ -1,7 +1,9 @@
 from conan import ConanFile
 from conan.tools.cmake import cmake_layout, CMakeDeps, CMakeToolchain, CMake
-from conan.tools.scm import Git
+from conan.tools.scm import Git, Version
 from conan.tools.build import check_min_cppstd
+from conan.tools.files import patch
+import os
 
 class RaftlibConan(ConanFile):
     name = "raftlib"
@@ -34,6 +36,16 @@ class RaftlibConan(ConanFile):
         tc.generate()
 
     def build(self):
+        if self.settings.compiler == "gcc":
+            self.output.info("compiler is GCC")
+            self.output.info(self.settings.compiler.version)
+            version_gt13: bool = Version(self.settings.compiler.version) >= "13"
+            if version_gt13:
+                self.output.info("applying GCC13 build patch")
+                patch_path = os.path.join(self.recipe_folder, "patches",
+                                          "gcc13-build.patch")
+                patch(self, patch_file=patch_path, strip=1)
+
         cm = CMake(self)
         cm.configure()
         cm.build()
