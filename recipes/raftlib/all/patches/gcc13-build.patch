@@ -1,0 +1,13 @@
+Index: src/git-dep/shm/include/shm
+===================================================================
+--- src.orig/git-dep/shm/include/shm
++++ src/git-dep/shm/include/shm
+@@ -24,7 +24,7 @@
+ #include <utility>
+ #include <exception>
+ #include <string>
+-
++#include <cstdint>
+ 
+ class SHMException : public std::exception
+ {
